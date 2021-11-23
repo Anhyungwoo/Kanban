@@ -13,9 +13,12 @@
 ```
 
 ```
+
 ### 3. 각 페이지별 소개 
-```
-```
+* 메인페이지
+![메인페이지](https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png)
+
+
 
 
 
