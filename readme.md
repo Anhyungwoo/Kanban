@@ -62,29 +62,81 @@ DB에 등록된 회원의 정보와 일치하는지 검토하여 일치하는 �
 이때 비밀번호는 개발자 및 관리자가 알 필요가 없으므로 암호해쉬값으로 입력됩니다.
 ```
 
-* 회원가입 기본 프레임 컴포넌트 (Join.vue)
+* 회원가입 기본 프레임 (Form.vue)
 ```
-	  <template>
-		<PageTitle>회원가입</PageTitle>
-		<Form :mode="mode" />
-	</template>
-		<script>
-		import PageTitle from "../../components/PageTitle.vue"
-		import Form from "../../components/member/Form.vue"
-		export default {
-			components: {PageTitle, Form},
-			created() {
-				if (this.$isLogin()) {
-					this.$router.push({ path : "/my_info" })
-				}
-			},
-			data() {
+<template>
+<form ref="frmMember" method="post" autocomplete='off' @submit="formSubmit($event)">
+		<input type="hidden" name="mode" :value="mode">
+		<input type="text" name="memId" placeholder='아이디' :value="member.memId" v-if="mode == 'join'">
+		<div v-else class='stit'>아이디 : {{ member.memId }}</div>
+		<br>          
+		<input type="password" name="memPw" placeholder='비밀번호'><br>        
+		<input type="password" name="memPwRe" placeholder='비밀번호확인'><br>
+		<input type="text" name="memNm" placeholder='회원명' :value="member.memNm"><br>
+		<input type="text" name="cellPhone" placeholder="휴대전화번호" :value="member.cellPhone"><br>
+		<input type="submit" value="가입하기" v-if="mode == 'join'">
+		<input type="submit" value="수정하기" v-else>
+</form>
+<MessagePopup ref='message_popup' :message="message" />
+</template>
+<script>
+import member from "../../models/member.js"
+import MessagePopup from "../../components/common/Message.vue"
+export default {
+		mixins : [member],
+		components : {MessagePopup},
+		data() {
 				return {
-					mode : "join"
+						isHide : true,
+						message : "",
 				};
-			}
+		},
+		props : {
+				mode : {
+						type : String,
+						default : "join"
+				},
+				member : {
+						type : Object,
+						default() {
+								return {
+										memId : "",
+										memNm : "",
+										cellPhone : ""
+								};
+						}
+				}
+		},
+		methods : {
+				async formSubmit(e) {
+						e.preventDefault();
+						const formData = new FormData(this.$refs.frmMember);
+						let result = {};
+						if (this.mode == 'join') {  // 회원 가입
+								result = await this.$join(formData);
+								if (result.success) {
+										this.$router.push({ path : '/login'});
+								}
+						} else { // 회원 정보 수정
+								result = await this.$update(formData);
+								if (result.success) {
+										const frm = this.$refs.frmMember;
+										frm.memPw.value = "";
+										frm.memPwRe.value = "";
+								}
+						}
+						if (result.message) {
+								this.showMessage(result.message);
+
+						}
+				},
+				showMessage(message) {
+						this.$refs.message_popup.isHide = false;
+						this.message = message;
+				}
 		}
-		</script>
+}
+</script>
 ```
 
 * 회원가입 메소드 및 DB연동
@@ -119,6 +171,73 @@ public function join($data) {
 }
 ```
 ### 2. 로그인
+```
+로그인은 PHP에서 요청받는 데이터가 DB Table에 저장된 회원의 데이터와 일치하면
+게시판으로 이동하여 게시글의 여러 기능을 사용할 수 있습니다.
+```
+* 로그인 기본 프레임 (Login.vue)
+```
+<template>
+    <PageTitle>로그인</PageTitle>
+    <form ref="frmLogin" autocomplete="off" @submit="formSubmit($event)">
+        <input type="text" name="memId" placeholder="아이디" v-model="memId"><br>
+        <input type="password" name="memPw" placeholder="비밀번호" v-model="memPw"><br>
+        <input type="submit" value="로그인">
+    </form>
+    <MessagePopup ref='popup' :message="message" />
+</template>
+<script>
+import PageTitle from '../../components/PageTitle.vue'
+import MessagePopup from '../../components/common/Message.vue'
+import member from '../../models/member.js'
+export default {
+    components : {PageTitle, MessagePopup},
+    mixins : [member],
+    created() {
+        if (this.$isLogin()) {
+            this.$router.push({ path : "/logout"} );
+        }
+    },
+    data() {
+        return {
+            message : "",
+            memId : "",
+            memPw : "",
+        };
+    },
+    methods : {
+        async formSubmit(e) {
+            e.preventDefault();
+            const formData = new FormData(this.$refs.frmLogin);
+            const result = await this.$login(formData);
+            if (result.success) {
+                this.memId = "";
+                this.memPw = "";
+               this.$router.push({ path : "/kanban/list"});
+            }
+
+            if (result.message) {
+                this.$showMessage(this, result.message);
+            }
+        }
+    }
+
+}
+</script>
+```
+* 로그인 처리 부분 - 데이터에 있는 Id와 Pw의 키값이 없을경우 예외 처리
+```
+/** 로그인 처리 */
+public function login($data) {
+
+	if (!isset($data['memId']) || !$data['memId']) {
+		throw new Exception("아이디를 입력하세요.");
+	}
+
+	if (!isset($data['memPw']) || !$data['memPw']) {
+		throw new Exception("비밀번호를 입력하세요.");
+	}
+```
 
 ### 3. 작업 목록
 
