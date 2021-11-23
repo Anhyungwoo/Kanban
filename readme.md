@@ -62,6 +62,7 @@ DB에 등록된 회원의 정보와 일치하는지 검토하여 일치하는 �
 이때 비밀번호는 개발자 및 관리자가 알 필요가 없으므로 암호해쉬값으로 입력됩니다.
 ```
 
+* 회원가입 기본 프레임 컴포넌트 (Join.vue)
 ```
 	  <template>
 		<PageTitle>회원가입</PageTitle>
@@ -84,6 +85,38 @@ DB에 등록된 회원의 정보와 일치하는지 검토하여 일치하는 �
 			}
 		}
 		</script>
+```
+
+* 회원가입 메소드 및 DB연동
+```
+public function join($data) {
+	$this->checkJoinData($data);
+
+	$hash = password_hash($data['memPw'], PASSWORD_DEFAULT, ["cost" => 10]);
+
+	$cellPhone = "";
+	if ($data['cellPhone']) {
+		$cellPhone = preg_replace("/[^0-9]/", "", $data['cellPhone']);
+	}
+
+	$sql = "INSERT INTO member (memId, memPw, memNm, cellPhone)
+				VALUES (:memId, :memPw, :memNm, :cellPhone)";
+	$stmt = $this->db->prepare($sql);
+	$stmt->bindValue(":memId", $data['memId']);
+	$stmt->bindValue(":memPw", $hash);
+	$stmt->bindValue(":memNm", $data['memNm']);
+	$stmt->bindValue(":cellPhone", $cellPhone);
+	$result = $stmt->execute();
+	if (!$result) { // SQL 실행 실패 -> SQL 오류
+		$errorInfo = $this->db->errorInfo();
+		throw new Exception(implode("/", $errorInfo));
+	}
+
+	$memNo = $this->db->lastInsertId();
+	$memberInfo = $this->get($memNo);
+
+	return $memberInfo;
+}
 ```
 ### 2. 로그인
 
