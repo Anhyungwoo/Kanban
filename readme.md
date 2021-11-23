@@ -20,6 +20,33 @@
 
 
 
-
-
 ## 핵심기술
+### 1. 회원가입
+	  동작 방식에 대한 설명 ..... 
+	  
+	  ```
+	  <template>
+		<PageTitle>회원가입</PageTitle>
+		<Form :mode="mode" />
+	</template>
+		<script>
+		import PageTitle from "../../components/PageTitle.vue"
+		import Form from "../../components/member/Form.vue"
+		export default {
+			components: {PageTitle, Form},
+			created() {
+				if (this.$isLogin()) {
+					this.$router.push({ path : "/my_info" })
+				}
+			},
+			data() {
+				return {
+					mode : "join"
+				};
+			}
+		}
+		</script>
+	  ```
+### 2. 로그인
+
+### 3. 작업 목록 
