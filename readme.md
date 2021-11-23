@@ -66,16 +66,16 @@ DB에 등록된 회원의 정보와 일치하는지 검토하여 일치하는 �
 ```
 <template>
 <form ref="frmMember" method="post" autocomplete='off' @submit="formSubmit($event)">
-<input type="hidden" name="mode" :value="mode">
-<input type="text" name="memId" placeholder='아이디' :value="member.memId" v-if="mode == 'join'">
-<div v-else class='stit'>아이디 : {{ member.memId }}</div>
-<br>          
-<input type="password" name="memPw" placeholder='비밀번호'><br>        
-<input type="password" name="memPwRe" placeholder='비밀번호확인'><br>
-<input type="text" name="memNm" placeholder='회원명' :value="member.memNm"><br>
-<input type="text" name="cellPhone" placeholder="휴대전화번호" :value="member.cellPhone"><br>
-<input type="submit" value="가입하기" v-if="mode == 'join'">
-<input type="submit" value="수정하기" v-else>
+    <input type="hidden" name="mode" :value="mode">
+    <input type="text" name="memId" placeholder='아이디' :value="member.memId" v-if="mode == 'join'">
+    <div v-else class='stit'>아이디 : {{ member.memId }}</div>
+    <br>          
+    <input type="password" name="memPw" placeholder='비밀번호'><br>        
+    <input type="password" name="memPwRe" placeholder='비밀번호확인'><br>
+    <input type="text" name="memNm" placeholder='회원명' :value="member.memNm"><br>
+    <input type="text" name="cellPhone" placeholder="휴대전화번호" :value="member.cellPhone"><br>
+    <input type="submit" value="가입하기" v-if="mode == 'join'">
+    <input type="submit" value="수정하기" v-else>
 </form>
 <MessagePopup ref='message_popup' :message="message" />
 </template>
@@ -83,58 +83,58 @@ DB에 등록된 회원의 정보와 일치하는지 검토하여 일치하는 �
 import member from "../../models/member.js"
 import MessagePopup from "../../components/common/Message.vue"
 export default {
-		mixins : [member],
-		components : {MessagePopup},
-		data() {
-				return {
-						isHide : true,
-						message : "",
-				};
-		},
-		props : {
-				mode : {
-						type : String,
-						default : "join"
-				},
-				member : {
-						type : Object,
-						default() {
-								return {
-										memId : "",
-										memNm : "",
-										cellPhone : ""
-								};
-						}
-				}
-		},
-		methods : {
-				async formSubmit(e) {
-						e.preventDefault();
-						const formData = new FormData(this.$refs.frmMember);
-						let result = {};
-						if (this.mode == 'join') {  // 회원 가입
-								result = await this.$join(formData);
-								if (result.success) {
-										this.$router.push({ path : '/login'});
-								}
-						} else { // 회원 정보 수정
-								result = await this.$update(formData);
-								if (result.success) {
-										const frm = this.$refs.frmMember;
-										frm.memPw.value = "";
-										frm.memPwRe.value = "";
-								}
-						}
-						if (result.message) {
-								this.showMessage(result.message);
+    mixins : [member],
+    components : {MessagePopup},
+    data() {
+        return {
+            isHide : true,
+            message : "",
+        };
+    },
+    props : {
+        mode : {
+            type : String,
+            default : "join"
+        },
+        member : {
+            type : Object,
+            default() {
+                return {
+                    memId : "",
+                    memNm : "",
+                    cellPhone : ""
+                };
+            }
+        }
+    },
+    methods : {
+        async formSubmit(e) {
+            e.preventDefault();
+            const formData = new FormData(this.$refs.frmMember);
+            let result = {};
+            if (this.mode == 'join') {  // 회원 가입
+                result = await this.$join(formData);
+                if (result.success) {
+                    this.$router.push({ path : '/login'});
+                }
+            } else { // 회원 정보 수정
+                result = await this.$update(formData);
+                if (result.success) {
+                    const frm = this.$refs.frmMember;
+                    frm.memPw.value = "";
+                    frm.memPwRe.value = "";
+                }
+            }
+            if (result.message) {
+                this.showMessage(result.message);
 
-						}
-				},
-				showMessage(message) {
-						this.$refs.message_popup.isHide = false;
-						this.message = message;
-				}
-		}
+            }
+        },
+        showMessage(message) {
+            this.$refs.message_popup.isHide = false;
+            this.message = message;
+        }
+    }
 }
 </script>
 ```
@@ -239,6 +239,157 @@ public function login($data) {
 	}
 ```
 
-### 3. 작업 목록
+* 토큰 발급으로 로그인을 유지시키고 유효시간을 2시간으로 설정
+```
+/**
+* 토큰 발급
+*/
+public function generateToken($memId) {
+	$token = md5(uniqid(true));
 
-111
+	$expireTime = time() + 60 * 60 * 2;
+	$date = date("Y-m-d H:i:s", $expireTime);
+	$sql = "UPDATE member
+					SET
+						token = :token,
+						tokenExpires = :tokenExpires
+				WHERE
+					memId = :memId";
+	$stmt = $this->db->prepare($sql);
+	$stmt->bindValue(":token", $token);
+	$stmt->bindValue(":tokenExpires", $date);
+	$stmt->bindValue(":memId", $memId);
+	$result = $stmt->execute();
+	if (!$result) {
+		return false;
+	}
+
+	return $token;
+}
+```
+
+### 3. 게시판
+```
+게시판의 기능들은 로그인 후 회원인 경우에만 접근 가능하고 사용자가 입력한 데이터를
+DB에 요청시켜 저장, 삭제, 수정이 가능하도록 개발하였습니다.
+```
+* 게시판 기본 프레임 (Form.vue)
+```
+<template>
+  <form id='frmKanban' ref="frmKanban" autocomplete="off" @submit="formSubmit($event)">
+    <input type="hidden" name="mode" :value="mode">
+    <input type="hidden" name="idx" :value="kanban.idx" v-if="mode != 'add'">
+    <dl>
+    <dt>작업구분</dt>
+    <dd>
+
+    <input type="radio" name="status" id='status_ready' value="ready" v-model="picked">
+    <label for='status_ready'>준비중</label>
+
+    <input type="radio" name="status" id='status_progress' value="progress" v-model="picked">
+    <label for='status_progress'>진행중</label>
+
+    <input type="radio" name="status" id='status_done' value="done" v-model="picked">
+    <label for='status_done'>완료</label>
+    </dd>
+      </dl>
+      <dl>
+    <dt>작업명</dt>
+    <dd>
+    <input type="text" name="subject" :value="kanban.subject">
+    </dd>
+    </dl>
+    <dl>
+      <dt>작업내용</dt>
+      <dd>
+        <textarea name="content" :value="kanban.content"></textarea>                
+    </dd>
+    </dl>
+    <input type="submit" value="작업등록" v-if="mode == 'add'">
+    <input type="submit" value="작업수정" v-else>
+    </form>
+    <MessagePopup ref='popup' :message="message" />
+</template>
+<script>
+import kanban from "../../models/kanban.js"
+import MessagePopup from "../../components/common/Message.vue"
+export default {
+    mixins : [kanban],
+    components : {MessagePopup},
+    data() {
+        return {
+            message : "",
+        };
+    },
+    computed : {
+       picked() {
+           return this.kanban.status || "ready";
+       }
+    },
+    props : {
+        mode : {
+            type : String,
+            default : "add",
+        },
+        kanban : {
+            type : Object,
+            default() {
+                return {
+                    idx : 0,
+                    status : "ready",
+                    subject : "",
+                    content : "",
+                };
+            }
+        }
+    },
+    methods : {
+        async formSubmit(e) {
+            e.preventDefault();
+           const formData = new FormData(this.$refs.frmKanban);
+           let result = {};
+           let idx = 0;
+           if (this.mode == 'add') { // 작업 추가
+                result = await this.$addWork(formData);
+                idx = result.data.idx;
+           } else { // 작업 수정
+                result = await this.$editWork(formData);
+                idx = this.$route.query.idx;
+           }
+
+            if (result.success) {
+                this.$router.push({ path : "/kanban/view", query : { idx }});
+                return;
+            }
+
+           if (result.message) {
+               this.$showMessage(this, result.message);
+           }
+        }
+    }
+}
+</script>
+```
+* 게시글 등록 DB연동 부분
+```
+/** 작업 추가 */
+public function addWork($data) {
+	$this->checkData($data); // 데이터 유효성 검사
+
+	$sql = "INSERT INTO worklist (memNo, status, subject, content)
+						VALUES (:memNo, :status, :subject, :content)";
+	$stmt = $this->db->prepare($sql);
+	$stmt->bindValue(":memNo", $data['memNo'], PDO::PARAM_INT);
+	$stmt->bindValue(":status", $data['status']);
+	$stmt->bindValue(":subject", $data['subject']);
+	$stmt->bindValue(":content", $data['content']);
+	$result = $stmt->execute();
+	if (!$result) {
+		return false;
+	}
+
+	$idx = $this->db->lastInsertId();
+
+	return $idx;
+}
+```
