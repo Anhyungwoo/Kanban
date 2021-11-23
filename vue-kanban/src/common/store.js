@@ -4,7 +4,7 @@ const store = createStore({
     plugins: [createPersistedState()],
     state() {
         return {
-            apiURL : "http://localhost:3000",
+            apiURL : "",
             // 로그인 회원 정보
             member : null,
         };
