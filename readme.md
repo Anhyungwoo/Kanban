@@ -5,8 +5,8 @@
 	
 	
 	
-	* PHP로 구현된 칸반 보드 <http://anstar94.cafe24.com/>
-	* Node.js로 구현된 칸반 보드 <http://ahw94.cafe24app.com>
+* PHP로 구현된 칸반 보드 (http://anstar94.cafe24.com)
+* Node.js로 구현된 칸반 보드 (http://ahw94.cafe24app.com)
 2. 적용 기술 
 
 3. 각 페이지별 소개 
